@@ -1,0 +1,126 @@
+openapi: 3.0.0
+info:
+  title: Notification Service API
+  version: 1.0.0
+  description: Микросервис уведомлений с поддержкой массовых рассылок, приоритетов, идемпотентности.
+servers:
+  - url: http://localhost:8080/api
+    description: Локальный запуск через Docker
+
+paths:
+  /notifications/send:
+    post:
+      summary: Отправить уведомления
+      description: Массовая рассылка. Для каждого получателя создаётся отдельное уведомление.
+      operationId: sendNotifications
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+          required: false
+          description: Уникальный ключ для защиты от повторной отправки (сохраняется 24 часа)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+                - recipients
+                - channel
+                - priority
+              properties:
+                message:
+                  type: string
+                  description: Текст сообщения
+                  example: "Ваш код подтверждения: 123456"
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                  description: Массив идентификаторов получателей (телефон или email)
+                  example: ["+79991234567", "user@example.com"]
+                channel:
+                  type: string
+                  enum: [sms, email]
+                  description: Канал отправки
+                priority:
+                  type: string
+                  enum: [high, low]
+                  description: Приоритет (high – транзакционные, без задержек)
+      responses:
+        '201':
+          description: Уведомления поставлены в очередь
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Notifications queued
+                  notifications:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        uuid:
+                          type: string
+                        recipient_id:
+                          type: string
+                        status:
+                          type: string
+        '200':
+          description: Повторный запрос с тем же Idempotency-Key – возвращает существующие уведомления
+        '422':
+          description: Ошибка валидации
+
+  /notifications/status:
+    get:
+      summary: Получить статус уведомлений получателя
+      operationId: getStatus
+      parameters:
+        - in: query
+          name: recipient_id
+          schema:
+            type: string
+          required: true
+          description: Идентификатор получателя (email или телефон)
+      responses:
+        '200':
+          description: Список уведомлений с детализацией статусов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recipient_id:
+                    type: string
+                  notifications:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        uuid:
+                          type: string
+                        channel:
+                          type: string
+                        message:
+                          type: string
+                        priority:
+                          type: string
+                        status:
+                          type: string
+                        failure_reason:
+                          type: string
+                        retry_count:
+                          type: integer
+                        created_at:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
