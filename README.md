@@ -4,13 +4,13 @@
 
 ```bash
 cp .env.example .env
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ## Тестирование
 
 ```bash
-docker-compose exec app php artisan test
+docker compose exec app php artisan test
 ```
 
 ## API
